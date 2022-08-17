@@ -1,64 +1,116 @@
 # python3
 
-class Query:
-
-    def __init__(self, query):
-        self.type = query[0]
-        if self.type == 'check':
-            self.ind = int(query[1])
-        else:
-            self.s = query[1]
-
 
 class QueryProcessor:
+    """A simple hash table using the chaining scheme.
+    Samples:
+    >>> bucket_count, n = 5, 12
+    >>> qp = QueryProcessor(bucket_count)
+    >>> queries = [
+    ... "add world",
+    ... "add HellO",
+    ... "check 4",
+    ... "find World",
+    ... "find world",
+    ... "del world",
+    ... "check 4",
+    ... "del HellO",
+    ... "add luck",
+    ... "add GooD",
+    ... "check 2",
+    ... "del good"
+    ... ]
+    >>> process_queries(queries)
+    HellO world
+    no
+    yes
+    HellO
+    GooD luck
+    >>> # Explanation:
+    >>> # The ASCII code of ’w’ is 119, for ’o’ it is 111, for ’r’ it is 114,
+    >>> # for ’l’ it is 108, and for ’d’ it is 100. Thus, h("world") = 4.
+    >>> # It turns out that the hash value of “HellO“ is also 4.
+    >>> # We always insert in the beginning of the chain, so after adding
+    >>> # “world” and then “HellO” in the same chain index 4, first goes
+    >>> # “HellO” and then goes “world”. Of course, “World” is not found,
+    >>> # and “world” is found, because the strings are case-sensitive,
+    >>> # and the codes of ’W’ and ’w’ are different. After deleting “world”,
+    >>> # only “HellO” is found in the chain 4.
+    >>> # Similarly to “world” and “HellO”, after adding “luck” and
+    >>> # “GooD” to the same chain 2, first goes “GooD” and then “luck”.
+    """
     _multiplier = 263
     _prime = 1000000007
 
     def __init__(self, bucket_count):
         self.bucket_count = bucket_count
-        # store all strings in one list
-        self.elems = []
+        self.buckets = [[] for _ in range(bucket_count)]
 
     def _hash_func(self, s):
+        """Hash function."""
         ans = 0
         for c in reversed(s):
             ans = (ans * self._multiplier + ord(c)) % self._prime
         return ans % self.bucket_count
 
-    def write_search_result(self, was_found):
-        print('yes' if was_found else 'no')
+    def add(self, string):
+        """Insert string into the table.
+        If there is already such string in the hash table,
+        then the query is ignored.
+        """
+        hashed = self._hash_func(string)
+        bucket = self.buckets[hashed]
+        if string not in bucket:
+            self.buckets[hashed] = [string] + bucket
 
-    def write_chain(self, chain):
-        print(' '.join(chain))
+    def delete(self, string):
+        """Removes string from the table.
+        If there is no such string in the hash table,
+        then the query is ignored.
+        """
+        hashed = self._hash_func(string)
+        bucket = self.buckets[hashed]
+        for i in range(len(bucket)):
+            if bucket[i] == string:
+                bucket.pop(i)
+                break
 
-    def read_query(self):
-        return Query(input().split())
+    def find(self, string):
+        """Looks up for the string in the table.
+        Returns “yes” or “no” (without quotes) depending on whether
+        the table contains string or not.
+        """
+        hashed = self._hash_func(string)
+        if string in self.buckets[hashed]:
+            return "yes"
+        return "no"
 
-    def process_query(self, query):
-        if query.type == "check":
-            # use reverse order, because we append strings to the end
-            self.write_chain(cur for cur in reversed(self.elems)
-                        if self._hash_func(cur) == query.ind)
-        else:
-            try:
-                ind = self.elems.index(query.s)
-            except ValueError:
-                ind = -1
-            if query.type == 'find':
-                self.write_search_result(ind != -1)
-            elif query.type == 'add':
-                if ind == -1:
-                    self.elems.append(query.s)
-            else:
-                if ind != -1:
-                    self.elems.pop(ind)
+    def check(self, i):
+        """Returns the content of the i-th list in the table."""
+        return self.buckets[i]
 
-    def process_queries(self):
-        n = int(input())
-        for i in range(n):
-            self.process_query(self.read_query())
 
-if __name__ == '__main__':
+def process_queries(queries):
+    """Helper function which reads queries from standard input,
+    runs query processor and sends the results to standard output.
+    """
+    for query in queries:
+        command, arg = query.split()
+        if command == "add":
+            qp.add(arg)
+        elif command == "del":
+            qp.delete(arg)
+        elif command == "find":
+            print(qp.find(arg))
+        elif command == "check":
+            arg = int(arg)
+            print(" ".join(qp.check(arg)))
+
+
+if __name__ == "__main__":
     bucket_count = int(input())
-    proc = QueryProcessor(bucket_count)
-    proc.process_queries()
+    n = int(input())
+
+    qp = QueryProcessor(bucket_count)
+    queries = [input() for i in range(n)]
+    process_queries(queries)
